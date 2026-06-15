@@ -1,0 +1,273 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12">
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2 class="fw-bold text-dark-blue">{{ bank.bank_name }} Ledger</h2>
+                <div class="text-muted mb-0">{{ bank.account_holder_name }} | {{ bank.account_no }}</div>
+                <div class="small text-muted">{{ bank.branch }}</div>
+            </div>
+            <div class="d-flex gap-2">
+                 <a href="{{ url_for('main.export_bank_ledger', id=bank.id) }}" class="btn btn-outline-success rounded-pill">
+                    <i class="fas fa-file-excel me-2"></i>Export Ledger
+                </a>
+                <a href="{{ url_for('main.manage_banks') }}" class="btn btn-outline-secondary rounded-pill">
+                    <i class="fas fa-arrow-left me-1"></i> Back to Banks
+                </a>
+            </div>
+        </div>
+        
+        <!-- Summary Cards (Calculated on the fly from displayed table for simplicity or simple backend pass) -->
+        {% set total_credit = transactions|sum(attribute='credit') %}
+        {% set total_debit = transactions|sum(attribute='debit') %}
+        {% set current_balance = total_credit - total_debit %}
+        <!-- Note: If using backend 'balance' field on last tx, we check that -->
+        {% if transactions %}
+            {% set display_balance = transactions[-1].balance %}
+        {% else %}
+            {% set display_balance = 0 %}
+        {% endif %}
+
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm h-100 bg-success bg-opacity-10">
+                    <div class="card-body text-center p-3">
+                        <div class="small fw-bold text-success text-uppercase">Total Credit (Deposit)</div>
+                        <div class="h3 fw-bold text-dark mb-0">৳{{ "{:,.2f}".format(total_credit) }}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm h-100 bg-danger bg-opacity-10">
+                    <div class="card-body text-center p-3">
+                        <div class="small fw-bold text-danger text-uppercase">Total Debit (Withdrawal)</div>
+                        <div class="h3 fw-bold text-dark mb-0">৳{{ "{:,.2f}".format(total_debit) }}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm h-100 bg-primary bg-opacity-10">
+                    <div class="card-body text-center p-3">
+                        <div class="small fw-bold text-primary text-uppercase">Current Balance</div>
+                        <div class="h3 fw-bold text-dark mb-0">৳{{ "{:,.2f}".format(display_balance) }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body p-3">
+                <form method="GET" action="{{ url_for('main.bank_ledger', id=bank.id) }}" class="row g-2 align-items-end">
+                    <div class="col-md-4">
+                        <label class="small fw-bold text-muted">Start Date</label>
+                        <input type="date" name="start_date" class="form-control" value="{{ start_date if start_date else '' }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="small fw-bold text-muted">End Date</label>
+                        <input type="date" name="end_date" class="form-control" value="{{ end_date if end_date else '' }}">
+                    </div>
+                    <div class="col-md-4">
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary w-100"><i class="fas fa-filter me-2"></i>Filter</button>
+                            {% if start_date or end_date %}
+                            <a href="{{ url_for('main.bank_ledger', id=bank.id) }}" class="btn btn-outline-secondary"><i class="fas fa-times"></i></a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-0 pt-4 px-4 pb-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <h5 class="fw-bold text-dark mb-0"><i class="fas fa-list-alt me-2"></i>Transactions</h5>
+                <button class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm" onclick="openTxModal()">
+                    <i class="fas fa-plus me-1"></i> Add Transaction
+                </button>
+            </div>
+            <div class="card-body p-0 mt-3">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light text-muted small text-uppercase">
+                            <tr>
+                                <th class="ps-4">Date</th>
+                                <th>Cheque / Ref</th>
+                                <th>Narration</th>
+                                <th>Trans. Details</th>
+                                <th class="text-end text-success">Credit</th>
+                                <th class="text-end text-danger">Debit</th>
+                                <th class="text-end text-primary fw-bold">Balance</th>
+                                <th class="text-end pe-4">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for tx in transactions %}
+                            <tr>
+                                <td class="ps-4 text-secondary text-nowrap">{{ tx.date }}</td>
+                                <td>
+                                    {% if tx.cheque_no %}<div><span class="badge bg-light text-dark border">Cq: {{ tx.cheque_no }}</span></div>{% endif %}
+                                    {% if tx.ref_no %}<div class="small text-muted">Ref: {{ tx.ref_no }}</div>{% endif %}
+                                </td>
+                                <td>{{ tx.narration or '-' }}</td>
+                                <td>{{ tx.transaction_details or '-' }}</td>
+                                <td class="text-end text-success">{{ "{:,.2f}".format(tx.credit) if tx.credit > 0 else '-' }}</td>
+                                <td class="text-end text-danger">{{ "{:,.2f}".format(tx.debit) if tx.debit > 0 else '-' }}</td>
+                                <td class="text-end fw-bold text-dark">{{ "{:,.2f}".format(tx.balance) }}</td>
+                                <td class="text-end pe-4">
+                                    <button class="btn btn-sm btn-light text-primary rounded-circle me-1" 
+                                            onclick='openEditModal({{ tx.to_dict()|tojson }})' title="Edit">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <a href="#" onclick="return confirmDelete(event, '{{ url_for('main.delete_bank_transaction', id=tx.id) }}')" class="btn btn-sm btn-light text-danger rounded-circle" title="Delete">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="8" class="text-center py-5 text-muted">No transactions found.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add/Edit Transaction Modal -->
+<div class="modal fade" id="txModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-light border-0">
+                <h5 class="modal-title fw-bold" id="modalTitle">Add Transaction</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form id="txForm" method="POST" onsubmit="return confirmAction(event, 'txForm')">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label small fw-bold text-muted">Date *</label>
+                            <input type="date" name="date" id="inputDate" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted">Cheque No</label>
+                            <input type="text" name="cheque_no" id="inputCheque" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted">Reference No</label>
+                            <input type="text" name="ref_no" id="inputRef" class="form-control">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-bold text-muted">Narration</label>
+                            <input type="text" name="narration" id="inputNarration" class="form-control">
+                        </div>
+                         <div class="col-12">
+                            <label class="form-label small fw-bold text-muted">Transaction Details</label>
+                            <input type="text" name="transaction_details" id="inputDetails" class="form-control">
+                        </div>
+                        
+                        <!-- Transaction Type Toggle -->
+                        <div class="col-12">
+                             <label class="form-label small fw-bold text-muted">Transaction Type</label>
+                             <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="tx_type" id="typeCredit" value="credit" checked onchange="toggleInputs()">
+                                <label class="btn btn-outline-success" for="typeCredit">Credit (Deposit)</label>
+
+                                <input type="radio" class="btn-check" name="tx_type" id="typeDebit" value="debit" onchange="toggleInputs()">
+                                <label class="btn btn-outline-danger" for="typeDebit">Debit (Withdrawal)</label>
+                            </div>
+                        </div>
+
+                        <div class="col-12" id="creditInputDiv">
+                            <label class="form-label small fw-bold text-muted">Credit Amount</label>
+                            <div class="input-group">
+                                <span class="input-group-text">৳</span>
+                                <input type="number" step="0.01" name="credit" id="inputCredit" class="form-control" placeholder="0.00">
+                            </div>
+                        </div>
+                         <div class="col-12 d-none" id="debitInputDiv">
+                            <label class="form-label small fw-bold text-muted">Debit Amount</label>
+                            <div class="input-group">
+                                <span class="input-group-text">৳</span>
+                                <input type="number" step="0.01" name="debit" id="inputDebit" class="form-control" placeholder="0.00">
+                            </div>
+                        </div>
+
+                        <div class="col-12 mt-4">
+                            <button type="submit" class="btn btn-primary w-100 fw-bold py-2" id="modalSubmitBtn">Save Transaction</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    var txModal;
+    document.addEventListener("DOMContentLoaded", function(){
+        txModal = new bootstrap.Modal(document.getElementById('txModal'));
+    });
+
+    function openTxModal() {
+        document.getElementById('modalTitle').innerText = 'Add Transaction';
+        document.getElementById('modalSubmitBtn').innerText = 'Save Transaction';
+        document.getElementById('txForm').action = "{{ url_for('main.bank_ledger', id=bank.id) }}";
+        
+        // Reset Fields
+        document.getElementById('txForm').reset();
+        document.getElementById('inputDate').value = new Date().toISOString().slice(0, 10);
+        
+        // Reset Type to Credit
+        document.getElementById('typeCredit').checked = true;
+        toggleInputs();
+        
+        txModal.show();
+    }
+
+    function openEditModal(tx) {
+        document.getElementById('modalTitle').innerText = 'Edit Transaction';
+        document.getElementById('modalSubmitBtn').innerText = 'Update Transaction';
+        document.getElementById('txForm').action = "/bank/transaction/edit/" + tx.id;
+        
+        // Populate Fields
+        document.getElementById('inputDate').value = tx.date; // Ensure format matches yyyy-MM-dd if needed, or reliance on string
+        document.getElementById('inputCheque').value = tx.cheque_no || '';
+        document.getElementById('inputRef').value = tx.ref_no || '';
+        document.getElementById('inputNarration').value = tx.narration || '';
+        document.getElementById('inputDetails').value = tx.transaction_details || '';
+        
+        // Determine Type
+        if (tx.credit > 0) {
+            document.getElementById('typeCredit').checked = true;
+            document.getElementById('inputCredit').value = tx.credit;
+            document.getElementById('inputDebit').value = '';
+        } else {
+            document.getElementById('typeDebit').checked = true;
+            document.getElementById('inputDebit').value = tx.debit;
+            document.getElementById('inputCredit').value = '';
+        }
+        toggleInputs();
+        
+        txModal.show();
+    }
+
+    function toggleInputs() {
+        if (document.getElementById('typeCredit').checked) {
+            document.getElementById('creditInputDiv').classList.remove('d-none');
+            document.getElementById('debitInputDiv').classList.add('d-none');
+            document.getElementById('inputDebit').value = '';
+        } else {
+            document.getElementById('debitInputDiv').classList.remove('d-none');
+            document.getElementById('creditInputDiv').classList.add('d-none');
+            document.getElementById('inputCredit').value = '';
+        }
+    }
+</script>
+{% endblock %}

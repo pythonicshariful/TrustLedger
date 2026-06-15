@@ -1,0 +1,358 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2 class="fw-bold text-dark-blue">Transactions</h2>
+                <p class="text-muted mb-0">Managing payment history for <strong>{{ customer.name }}</strong></p>
+                <div class="small text-muted">ID: {{ customer.customer_id }} | Plot: {{ customer.plot_no }}</div>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('main.download_individual_customer_report', id=customer.id) }}" class="btn btn-outline-success rounded-pill">
+                    <i class="fas fa-file-excel me-2"></i> Report
+                </a>
+                <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary rounded-pill">
+                    <i class="fas fa-arrow-left me-1"></i> Back to Dashboard
+                </a>
+            </div>
+        </div>
+
+        <!-- Financial Summary Card -->
+        <div class="card border-0 shadow-sm mb-4 bg-white">
+            <div class="card-body p-4">
+                <div class="row text-center">
+                    <div class="col-md-4 border-end">
+                        <div class="text-muted small text-uppercase fw-bold">Total Price</div>
+                        <div class="h3 text-dark fw-bold mb-0">৳{{ "{:,.0f}".format(customer.total_price) }}</div>
+                    </div>
+                    <div class="col-md-4 border-end">
+                        <div class="text-muted small text-uppercase fw-bold">Total Paid</div>
+                        <div class="h3 text-success fw-bold mb-0">৳{{ "{:,.0f}".format(customer.total_paid) }}</div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-muted small text-uppercase fw-bold">Due Amount</div>
+                        <div class="h3 text-danger fw-bold mb-0">৳{{ "{:,.0f}".format(customer.due_amount) }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Add Transaction Form -->
+            <div class="col-md-4">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white border-0 pt-4 px-4 pb-0">
+                        <h5 class="fw-bold text-primary"><i class="fas fa-plus-circle me-2"></i>New Transaction</h5>
+                    </div>
+                    <div class="card-body p-4">
+                        <form id="transactionForm" method="POST" enctype="multipart/form-data" onsubmit="return confirmAction(event, 'transactionForm')">
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold text-muted">Date *</label>
+                                <input type="date" name="date" class="form-control" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold text-muted">Amount *</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">৳</span>
+                                    <input type="number" step="0.01" name="amount" class="form-control" required>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold text-muted">Installment / Payment Type *</label>
+                                <select name="installment_type" class="form-select" required>
+                                    <optgroup label="Core Milestones">
+                                        {% for milestone in all_milestones %}
+                                        <option value="{{ milestone.name }}">{{ milestone.name }}</option>
+                                        {% endfor %}
+                                    </optgroup>
+                                    <optgroup label="General Payments">
+                                        <option value="Booking">Booking Money</option>
+                                        <option value="Down Payment">Down Payment</option>
+                                        <option value="Part Payment">Part Payment</option>
+                                        <option value="Full Payment">Full Payment</option>
+                                        <option value="Extra Land">Extra Land Payment</option>
+                                    </optgroup>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold text-muted">Payment Destination *</label>
+                                <select name="payment_source" id="paymentSource" class="form-select" onchange="toggleAccountingFields()" required>
+                                    <option value="Cash">Petty Cash (Cash)</option>
+                                    <option value="Bank">Bank Account</option>
+                                </select>
+                            </div>
+
+                            <!-- Petty Cash Category (visible when Cash selected) -->
+                            <div class="mb-3" id="pettyCategoryDiv">
+                                <label class="form-label small fw-bold text-muted">Select Category *</label>
+                                <select name="petty_category" id="pettyCategorySelect" class="form-select" required>
+                                    <option value="">-- Choose Category --</option>
+                                    {% for cat in categories %}
+                                    <option value="{{ cat.name }}">{{ cat.name }}</option>
+                                    {% endfor %}
+                                </select>
+                                {% if not categories %}
+                                <div class="small text-danger mt-1"><i class="fas fa-exclamation-triangle me-1"></i>No categories found. Add them in Settings.</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Bank Select (visible when Bank selected) -->
+                            <div class="mb-3" id="bankSelectDiv" style="display: none;">
+                                <label class="form-label small fw-bold text-muted">Select Bank *</label>
+                                <select name="bank_id" id="bankSelect" class="form-select">
+                                    <option value="">-- Choose Bank --</option>
+                                    {% for bank in banks %}
+                                    <option value="{{ bank.id }}">{{ bank.bank_name }} ({{ bank.account_no }})</option>
+                                    {% endfor %}
+                                </select>
+                                {% if not banks %}
+                                <div class="small text-danger mt-1"><i class="fas fa-exclamation-triangle me-1"></i>No banks found. Add them in Bank Settings.</div>
+                                {% endif %}
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold text-muted">Transaction ID</label>
+                                <input type="text" name="transaction_id" class="form-control" placeholder="Optional">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold text-muted">Remarks</label>
+                                <textarea name="remarks" class="form-control" rows="2"></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold text-muted">Evidence/Proof (Images)</label>
+                                <input type="file" name="evidence" class="form-control" multiple accept="image/*">
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100 rounded-pill fw-bold">Add
+                                Transaction</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Transaction History Table -->
+            <div class="col-md-8">
+                <div class="card border-0 shadow-sm">
+                    <div
+                        class="card-header bg-white border-0 pt-4 px-4 pb-0 d-flex justify-content-between align-items-center">
+                        <h5 class="fw-bold text-dark"><i class="fas fa-history me-2"></i>Payment History</h5>
+                        <span class="badge bg-light text-dark border">{{ history|length }} Records</span>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="bg-light text-muted small text-uppercase">
+                                    <tr>
+                                        <th class="ps-4">Date</th>
+                                        <th>Amount</th>
+                                        <th>Details</th>
+                                        <th class="text-end pe-4">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for tx in history %}
+                                    <tr class="{% if tx.type == 'installment' %}table-success table-opacity-10{% endif %}">
+                                        <td class="ps-4 fw-medium text-secondary">{{ tx.date }}</td>
+                                        <td>
+                                            <span class="fw-bold text-success">+ ৳{{ "{:,.0f}".format(tx.amount) }}</span>
+                                            <div class="small fw-semibold text-primary text-uppercase" style="font-size: 0.75rem;">
+                                                {{ tx.label }}
+                                                {% if tx.type == 'installment' %}<i class="fas fa-check-circle ms-1 text-success" title="Linked Milestone"></i>{% endif %}
+                                            </div>
+                                        </td>
+                                        <td style="font-size: 0.85rem;">
+                                            {% if tx.method %}
+                                            <div class="mb-1">
+                                                <i class="fas fa-wallet me-1 text-muted"></i> 
+                                                <span class="text-muted">Source:</span> {{ tx.method }}
+                                            </div>
+                                            {% endif %}
+                                            {% if tx.txid %}
+                                            <div class="text-muted"><i class="fas fa-hashtag me-1" style="font-size: 0.7rem;"></i>{{ tx.txid }}</div>
+                                            {% endif %}
+                                            {% if tx.remarks %}
+                                            <div class="text-muted fst-italic">"{{ tx.remarks }}"</div>
+                                            {% endif %}
+                                            {% if tx.images %}
+                                            <div class="mt-2">
+                                                {% for img in tx.images.split(',') %}
+                                                <a href="{{ url_for('main.uploaded_file', filename=img) }}"
+                                                    target="_blank" class="d-inline-block me-1">
+                                                    <div class="rounded border p-1 bg-white">
+                                                        <img src="{{ url_for('main.uploaded_file', filename=img) }}"
+                                                            style="height: 35px; width: 35px; object-fit: cover;">
+                                                    </div>
+                                                </a>
+                                                {% endfor %}
+                                            </div>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-end pe-4">
+                                            {% if tx.type == 'legacy' %}
+                                            <button type="button" class="btn btn-sm btn-light border rounded-circle text-primary me-1" 
+                                                data-id="{{ tx.id }}"
+                                                data-date="{{ tx.date }}"
+                                                data-amount="{{ tx.amount }}"
+                                                data-type="legacy"
+                                                data-label="{{ tx.label }}"
+                                                data-method="{{ tx.method }}"
+                                                data-txid="{{ tx.txid or '' }}"
+                                                data-remarks="{{ tx.remarks or '' }}"
+                                                onclick="editTx(this)">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <a href="#" class="btn btn-sm btn-light border rounded-circle text-danger" onclick="return confirmDelete(event, '{{ url_for('main.delete_transaction', id=tx.id) }}')">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </a>
+                                            {% elif tx.type == 'installment' %}
+                                            <button type="button" class="btn btn-sm btn-light border rounded-circle text-primary me-1" 
+                                                data-id="{{ tx.id }}"
+                                                data-date="{{ tx.date }}"
+                                                data-amount="{{ tx.amount }}"
+                                                data-type="installment"
+                                                data-label="{{ tx.label }}"
+                                                data-method="{{ tx.method }}"
+                                                data-txid="{{ tx.txid or '' }}"
+                                                data-remarks="{{ tx.remarks or '' }}"
+                                                onclick="editTx(this)">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <a href="#" class="btn btn-sm btn-light border rounded-circle text-danger" onclick="return confirmDelete(event, '{{ url_for('main.delete_installment_entry', id=tx.id) }}')">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </a>
+                                            {% else %}
+                                            <div class="small text-muted fst-italic">Milestone PMT</div>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="4" class="text-center py-5 text-muted">
+                                            No payment records found.
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleAccountingFields() {
+    const source = document.getElementById('paymentSource').value;
+    const bankDiv = document.getElementById('bankSelectDiv');
+    const pettyDiv = document.getElementById('pettyCategoryDiv');
+    
+    const bankSelect = document.getElementById('bankSelect');
+    const pettySelect = document.getElementById('pettyCategorySelect');
+
+    if (source === 'Bank') {
+        bankDiv.style.display = 'block';
+        bankSelect.required = true;
+        
+        pettyDiv.style.display = 'none';
+        pettySelect.required = false;
+    } else {
+        pettyDiv.style.display = 'block';
+        pettySelect.required = true;
+        
+        bankDiv.style.display = 'none';
+        bankSelect.required = false;
+    }
+}
+
+// Initial call to set correct state
+document.addEventListener('DOMContentLoaded', function() {
+    toggleAccountingFields();
+});
+
+function editTx(btn) {
+    // Switch Form to Edit Mode
+    const form = document.getElementById('transactionForm');
+    
+    const id = btn.getAttribute('data-id');
+    const date = btn.getAttribute('data-date');
+    const amount = btn.getAttribute('data-amount');
+    const type = btn.getAttribute('data-type');
+    const label = btn.getAttribute('data-label');
+    const method = btn.getAttribute('data-method');
+    const txId = btn.getAttribute('data-txid');
+    const remarks = btn.getAttribute('data-remarks');
+
+    // Update Action
+    if (type === 'legacy') {
+        form.action = `/transaction/edit/${id}`;
+        form.querySelector('select[name="installment_type"]').disabled = false;
+        form.querySelector('select[name="installment_type"]').value = label;
+    } else {
+        form.action = `/installment_entry/edit/${id}`;
+        // Installment type shouldn't be changed for existing installments as they are linked to specific Milestone
+        form.querySelector('select[name="installment_type"]').value = label;
+        form.querySelector('select[name="installment_type"]').disabled = true;
+    }
+    
+    // Populate Fields
+    form.querySelector('input[name="date"]').value = date;
+    form.querySelector('input[name="amount"]').value = amount;
+    
+    // Handle Source
+    const sourceSelect = document.getElementById('paymentSource');
+    if (method === 'Cash') {
+        sourceSelect.value = 'Cash';
+    } else if (method.includes('Bank ID:')) {
+        sourceSelect.value = 'Bank';
+        const bid = method.split(': ')[1];
+        form.querySelector('select[name="bank_id"]').value = bid;
+    }
+    toggleAccountingFields();
+
+    form.querySelector('input[name="transaction_id"]').value = txId;
+    form.querySelector('textarea[name="remarks"]').value = remarks;
+    
+    // Update Button
+    const submitBtn = form.querySelector('button[type="submit"]');
+    submitBtn.innerText = "Update Transaction";
+    submitBtn.classList.remove('btn-primary');
+    submitBtn.classList.add('btn-warning');
+    
+    // Show Cancel Button (if not exists)
+    let cancelBtn = document.getElementById('cancelEditBtn');
+    if (!cancelBtn) {
+        cancelBtn = document.createElement('button');
+        cancelBtn.id = 'cancelEditBtn';
+        cancelBtn.type = 'button';
+        cancelBtn.className = 'btn btn-secondary w-100 rounded-pill fw-bold mt-2';
+        cancelBtn.innerText = 'Cancel Edit';
+        cancelBtn.onclick = resetForm;
+        form.appendChild(cancelBtn);
+    }
+    
+    // Scroll to form
+    form.scrollIntoView({ behavior: 'smooth' });
+}
+
+function resetForm() {
+    const form = document.getElementById('transactionForm');
+    form.reset();
+    form.action = ""; // Reset to default (POST to current URL)
+    form.querySelector('select[name="installment_type"]').disabled = false;
+    
+    const submitBtn = form.querySelector('button[type="submit"]');
+    submitBtn.innerText = "Add Transaction";
+    submitBtn.classList.add('btn-primary');
+    submitBtn.classList.remove('btn-warning');
+    
+    const cancelBtn = document.getElementById('cancelEditBtn');
+    if (cancelBtn) cancelBtn.remove();
+    
+    // Hide accounting divs correctly
+    toggleAccountingFields();
+}
+</script>
+{% endblock %}

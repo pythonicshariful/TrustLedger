@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2 class="fw-bold text-dark-blue">System Settings</h2>
+                <p class="text-muted mb-0">Manage Backups and Data Restoration</p>
+            </div>
+            <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary rounded-pill"><i
+                    class="fas fa-arrow-left me-1"></i> Back to Dashboard</a>
+        </div>
+
+        <!-- Warning Alert -->
+        <div class="alert alert-warning border-0 shadow-sm mb-4">
+            <div class="d-flex">
+                <div class="me-3"><i class="fas fa-exclamation-triangle fa-2x"></i></div>
+                <div>
+                    <h5 class="alert-heading fw-bold">Warning: Data Overwrite</h5>
+                    <p class="mb-0">Restoring data will <strong>permanently replace</strong> all current data in the
+                        database. Ensure you have backed up your current data if needed.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Restore from File -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white border-0 pt-4 px-4 pb-0">
+                <h5 class="fw-bold text-dark"><i class="fas fa-file-upload me-2"></i>Restore from External File</h5>
+            </div>
+            <div class="card-body p-4">
+                <form action="{{ url_for('main.restore_data') }}" method="POST" enctype="multipart/form-data">
+                    <label class="form-label small fw-bold text-muted">Upload Excel Backup (*.xlsx)</label>
+                    <div class="input-group">
+                        <input type="file" name="backup_file" class="form-control" accept=".xlsx" required>
+                        <button class="btn btn-primary fw-bold" type="submit">Restore Now</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Available Backups -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-0 pt-4 px-4 pb-0">
+                <h5 class="fw-bold text-dark"><i class="fas fa-history me-2"></i>Available Auto-Backups</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light text-muted small text-uppercase">
+                            <tr>
+                                <th class="ps-4">Backup Filename</th>
+                                <th class="text-end pe-4">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for backup in backups %}
+                            <tr>
+                                <td class="ps-4 fw-medium text-secondary">{{ backup }}</td>
+                                <td class="text-end pe-4">
+                                    <form action="{{ url_for('main.restore_data') }}" method="POST" class="d-inline"
+                                        onsubmit="return confirm('Are you sure you want to restore to {{ backup }}? Current data will be lost.');">
+                                        <input type="hidden" name="backup_filename" value="{{ backup }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                            <i class="fas fa-undo-alt me-1"></i> Restore
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="2" class="text-center py-4 text-muted">No backups found yet. Make some
+                                    changes to generate one.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

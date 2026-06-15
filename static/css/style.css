@@ -1,0 +1,38 @@
+body {
+    background-color: #f4f6f9;
+    font-family: 'Outfit', sans-serif;
+    color: #333;
+}
+
+.bg-dark-gradient {
+    background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+}
+
+.text-dark-blue {
+    color: #1e3a8a;
+}
+
+.accordion-button:not(.collapsed) {
+    background-color: #eef2ff;
+    color: #1e3a8a;
+    box-shadow: none;
+}
+
+.accordion-button:focus {
+    box-shadow: none;
+    border-color: rgba(0,0,0,.125);
+}
+
+.main-content {
+    min-height: 80vh;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 0.25rem rgba(59, 130, 246, 0.25);
+}
+
+.card {
+    border: none;
+    border-radius: 12px;
+}

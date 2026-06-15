@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center no-print mb-4">
+        <a href="{{ url_for('main.manage_petty_cash') }}" class="btn btn-outline-secondary rounded-pill">
+            <i class="fas fa-arrow-left me-2"></i>Back
+        </a>
+        <button onclick="window.print()" class="btn btn-primary rounded-pill shadow-sm">
+            <i class="fas fa-print me-2"></i>Print Invoice
+        </button>
+    </div>
+
+    <div class="card border-0 shadow-lg" id="invoice-card">
+        <div class="card-body p-5">
+            <!-- Header -->
+            <div class="row border-bottom pb-4 mb-4">
+                <div class="col-8">
+                    <h1 class="fw-bold text-dark-blue display-6">INVOICE / VOUCHER</h1>
+                    <p class="text-muted mb-0">Shopno Bilash</p>
+                    <p class="text-muted small">Official Transaction Record</p>
+                </div>
+                <div class="col-4 text-end">
+                    <div class="text-uppercase text-muted small fw-bold">Transaction ID</div>
+                    <div class="fw-bold fs-5">#PC-{{ entry.id }}</div>
+                    <div class="mt-2 text-uppercase text-muted small fw-bold">Date</div>
+                    <div>{{ entry.date }}</div>
+                </div>
+            </div>
+
+            <!-- Content -->
+            <div class="row mb-5">
+                <div class="col-12">
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead class="bg-light text-uppercase small text-muted">
+                                <tr>
+                                    <th>Description</th>
+                                    <th>Category</th>
+                                    <th>Type</th>
+                                    <th class="text-end">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="fw-bold p-3">{{ entry.description }}</td>
+                                    <td class="p-3">{{ entry.category }}</td>
+                                    <td class="p-3">
+                                        {% if entry.type == 'Income' %}
+                                            <span class="text-success fw-bold">INCOME</span>
+                                        {% else %}
+                                            <span class="text-danger fw-bold">EXPENSE</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end fw-bold fs-5 p-3">৳{{ "{:,.2f}".format(entry.amount) }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Proof/Evidence -->
+            {% if entry.images %}
+            <div class="mb-5 page-break-inside-avoid">
+                <h6 class="text-uppercase text-muted small fw-bold border-bottom pb-2 mb-3">Attached Proof / Evidence</h6>
+                <div class="row g-3">
+                    {% for img in entry.images.split(',') %}
+                        <div class="col-md-6">
+                            {% if img.lower().endswith('.pdf') %}
+                                <div class="border rounded p-3 text-center bg-light">
+                                    <i class="fas fa-file-pdf text-danger fs-1 mb-2"></i>
+                                    <div>{{ img }}</div>
+                                    <small class="text-muted">(PDF File - Not displayable in print)</small>
+                                </div>
+                            {% elif img.lower().endswith('.doc') or img.lower().endswith('.docx') %}
+                                <div class="border rounded p-3 text-center bg-light">
+                                    <i class="fas fa-file-word text-primary fs-1 mb-2"></i>
+                                    <div>{{ img }}</div>
+                                    <small class="text-muted">(Word File - Not displayable in print)</small>
+                                </div>
+                            {% else %}
+                                <img src="{{ url_for('main.uploaded_file', filename=img) }}" class="img-fluid rounded border shadow-sm" style="max-height: 400px; width: 100%; object-fit: contain;">
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Footer -->
+            <div class="row mt-5 pt-5">
+                <div class="col-6">
+                    <div class="border-top pt-2 w-50 text-center">
+                        <small class="text-muted text-uppercase fw-bold">Authorized Signature</small>
+                    </div>
+                </div>
+                <div class="col-6 text-end">
+                    <div class="text-muted small">Generated by Shopno Bilash System</div>
+                    <div class="text-muted small">Date: {{ now.strftime('%Y-%m-%d %H:%M:%S') }}</div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<style>
+    @media print {
+        @page { margin: 0.5cm; size: A4 portrait; }
+        .no-print { display: none !important; }
+        body { background-color: white !important; -webkit-print-color-adjust: exact; font-size: 12px; }
+        .card { border: none !important; box-shadow: none !important; }
+        .container { max-width: 100% !important; margin: 0 !important; padding: 0 !important; }
+        .card-body { padding: 1rem !important; }
+        
+        /* Compact Header */
+        h1.display-6 { font-size: 24px !important; margin-bottom: 5px !important; }
+        .mb-4 { margin-bottom: 1rem !important; }
+        .pb-4 { padding-bottom: 0.5rem !important; }
+        
+        /* Compact Table */
+        .table th, .table td { padding: 0.5rem !important; }
+        .fs-5 { font-size: 1.1rem !important; }
+        
+        /* Image Constraint for 1 Page */
+        .img-fluid { 
+            max-height: 250px !important; 
+            width: auto !important; 
+            max-width: 100%; 
+            display: block; 
+            margin: 0 auto;
+        }
+        .col-md-6 { width: 50% !important; float: left; }
+        
+        /* Footer */
+        .mt-5 { margin-top: 2rem !important; }
+        .pt-5 { padding-top: 1rem !important; }
+    }
+</style>
+{% endblock %}

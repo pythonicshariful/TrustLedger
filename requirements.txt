@@ -1,0 +1,8 @@
+flask
+sqlalchemy
+flask-sqlalchemy
+pandas
+openpyxl
+requests
+certifi
+pywebview

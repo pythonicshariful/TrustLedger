@@ -1,0 +1,162 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow-lg p-4 border-0">
+            <h3 class="mb-4 fw-bold text-center text-dark-blue">
+                {% if customer %}<i class="fas fa-edit me-2"></i>Edit Customer{% else %}<i
+                    class="fas fa-user-plus me-2"></i>Add Customer{% endif %}
+            </h3>
+
+            <form id="customerForm" method="POST" class="row g-3" onsubmit="return confirmAction(event, 'customerForm')">
+
+                <h5 class="text-primary border-bottom pb-2 mb-3"><i class="fas fa-info-circle me-1"></i> Basic Info</h5>
+
+                <div class="col-md-6">
+                    <label class="form-label text-muted small fw-bold">Select Director</label>
+                    <select name="director_id" class="form-select" required>
+                        <option value="" disabled {% if not customer %}selected{% endif %}>Choose...</option>
+                        {% for director in directors %}
+                        <option value="{{ director.id }}" {% if customer and customer.director_id==director.id
+                            %}selected{% endif %}>{{ director.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label text-muted small fw-bold">Customer ID (Official)</label>
+                    <input type="text" name="customer_id" class="form-control" required
+                        value="{{ customer.customer_id if customer else '' }}">
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label text-muted small fw-bold">Full Name</label>
+                    <input type="text" name="name" class="form-control" required
+                        value="{{ customer.name if customer else '' }}">
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label text-muted small fw-bold">Phone Number</label>
+                    <input type="text" name="phone" class="form-control"
+                        value="{{ customer.phone if customer else '' }}">
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label text-muted small fw-bold">Father's Name</label>
+                    <input type="text" name="father_name" class="form-control"
+                        value="{{ customer.father_name if customer else '' }}">
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label text-muted small fw-bold">Mother's Name</label>
+                    <input type="text" name="mother_name" class="form-control"
+                        value="{{ customer.mother_name if customer else '' }}">
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label text-muted small fw-bold">Date of Birth</label>
+                    <input type="date" name="dob" class="form-control"
+                        value="{{ customer.dob if customer else '' }}">
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label text-muted small fw-bold">Religion</label>
+                    <select name="religion" class="form-select">
+                        <option value="" {% if not customer or not customer.religion %}selected{% endif %}>Select Religion</option>
+                        <option value="Islam" {% if customer and customer.religion == 'Islam' %}selected{% endif %}>Islam</option>
+                        <option value="Hinduism" {% if customer and customer.religion == 'Hinduism' %}selected{% endif %}>Hinduism</option>
+                        <option value="Christianity" {% if customer and customer.religion == 'Christianity' %}selected{% endif %}>Christianity</option>
+                        <option value="Buddhism" {% if customer and customer.religion == 'Buddhism' %}selected{% endif %}>Buddhism</option>
+                        <option value="Other" {% if customer and customer.religion == 'Other' %}selected{% endif %}>Other</option>
+                    </select>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label text-muted small fw-bold">Profession</label>
+                    <input type="text" name="profession" class="form-control"
+                        value="{{ customer.profession if customer else '' }}">
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label text-muted small fw-bold">NID No</label>
+                    <input type="text" name="nid_no" class="form-control"
+                        value="{{ customer.nid_no if customer else '' }}">
+                </div>
+
+                <div class="col-12">
+                    <label class="form-label text-muted small fw-bold">Present Address</label>
+                    <textarea name="present_address" class="form-control" rows="2">{{ customer.present_address if customer else '' }}</textarea>
+                </div>
+
+                <div class="col-12">
+                     <label class="form-label text-muted small fw-bold">Permanent Address</label>
+                     <textarea name="permanent_address" class="form-control" rows="2">{{ customer.permanent_address if customer else '' }}</textarea>
+                </div>
+
+                <div class="col-12">
+                    <label class="form-label text-muted small fw-bold">Plot No / Details</label>
+                    <input type="text" name="plot_no" class="form-control"
+                        value="{{ customer.plot_no if customer else '' }}">
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label text-muted small fw-bold">
+                        <i class="fas fa-share-alt me-1 text-primary"></i>Number of Shares *
+                    </label>
+                    <input type="number" step="0.01" min="0" name="num_shares" class="form-control fw-bold"
+                        value="{{ customer.num_shares if customer else '1' }}" required>
+                    <div class="form-text">Shares purchased from Director (used for installment calculations)</div>
+                </div>
+
+                <h5 class="text-primary border-bottom pb-2 mb-3 mt-4"><i class="fas fa-calculator me-1"></i> Financials
+                </h5>
+
+                <div class="col-md-4">
+                    <label class="form-label text-muted small fw-bold">Total Price</label>
+                    <div class="input-group">
+                        <span class="input-group-text">৳</span>
+                        <input type="number" step="0.01" name="total_price" class="form-control"
+                            value="{{ customer.total_price if customer else '' }}">
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label text-muted small fw-bold">Down Payment</label>
+                    <div class="input-group">
+                        <span class="input-group-text">৳</span>
+                        <input type="number" step="0.01" name="down_payment" class="form-control"
+                            value="{{ customer.down_payment if customer else '' }}">
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label text-muted small fw-bold">Monthly Installment</label>
+                    <div class="input-group">
+                        <span class="input-group-text">৳</span>
+                        <input type="number" step="0.01" name="monthly_installment" class="form-control"
+                            value="{{ customer.monthly_installment if customer else '' }}">
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label text-muted small fw-bold">Total Paid So Far</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-success text-white">৳</span>
+                        <input type="number" step="0.01" name="total_paid" class="form-control fw-bold text-success"
+                            value="{{ customer.total_paid if customer else '' }}">
+                    </div>
+                    <div class="form-text">System will auto-calculate Due Amount.</div>
+                </div>
+
+
+
+                <div class="d-grid gap-2 mt-4">
+                    <button type="submit" class="btn btn-primary btn-lg shadow-sm">Save Details</button>
+                    <a href="{{ url_for('main.index') }}" class="btn btn-light text-muted">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

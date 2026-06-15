@@ -1,0 +1,602 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+  .report-hero {
+    background: linear-gradient(135deg, #0f3460 0%, #16213e 60%, #1a1a2e 100%);
+    border-radius: 1.25rem;
+    padding: 2rem 2.5rem;
+    color: white;
+    margin-bottom: 2rem;
+  }
+  .stat-card {
+    border: none;
+    border-radius: 1rem;
+    transition: transform 0.2s;
+  }
+  .stat-card:hover { transform: translateY(-3px); }
+  .stat-icon {
+    width: 52px; height: 52px;
+    border-radius: 0.875rem;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem;
+  }
+  .nav-tabs .nav-link {
+    color: #6c757d;
+    font-weight: 600;
+    border-radius: 0.75rem 0.75rem 0 0;
+    border: none;
+    padding: 0.75rem 1.25rem;
+  }
+  .nav-tabs .nav-link.active {
+    color: #0d6efd;
+    background: #fff;
+    border: none;
+    border-bottom: 3px solid #0d6efd;
+  }
+  .nav-tabs { border-bottom: 2px solid #e9ecef; }
+  .progress { border-radius: 1rem; }
+  .progress-bar { border-radius: 1rem; transition: width 0.8s ease; }
+  .table th { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; color: #6c757d; }
+  .badge-income { background: #d1f5e0; color: #198754; }
+  .badge-expense { background: #fde8e8; color: #dc3545; }
+  .filter-bar {
+    background: #f8f9fa;
+    border-radius: 0.875rem;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid #e9ecef;
+  }
+  .section-title {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #6c757d;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+  }
+  @media print {
+    .no-print { display: none !important; }
+    .report-hero { background: #1a1a2e !important; -webkit-print-color-adjust: exact; }
+  }
+</style>
+
+<!-- Hero -->
+<div class="report-hero shadow-lg no-print">
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+    <div>
+      <h2 class="fw-bold mb-1"><i class="fas fa-chart-bar me-2 text-info"></i>Reports & Analytics</h2>
+      <p class="mb-0 text-white-50">Daily cash flow, monthly summaries, and installment collection status.</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <button onclick="window.print()" class="btn btn-outline-light btn-sm fw-semibold">
+        <i class="fas fa-print me-1"></i>Print
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Tabs Navigation -->
+<ul class="nav nav-tabs mb-4 no-print" id="reportTabs" role="tablist">
+  <li class="nav-item">
+    <a class="nav-link {% if not request.args.get('tab') or request.args.get('tab') == 'daily' %}active{% endif %}"
+       href="{{ url_for('main.reports_hub', tab='daily', date=selected_date) }}">
+      <i class="fas fa-sun me-1"></i>Daily Cash Report
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if request.args.get('tab') == 'monthly' %}active{% endif %}"
+       href="{{ url_for('main.reports_hub', tab='monthly', month=selected_month) }}">
+      <i class="fas fa-calendar-alt me-1"></i>Monthly Summary
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if request.args.get('tab') == 'installments' %}active{% endif %}"
+       href="{{ url_for('main.reports_hub', tab='installments') }}">
+      <i class="fas fa-layer-group me-1"></i>Installment Status
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if request.args.get('tab') == 'directors' %}active{% endif %}"
+       href="{{ url_for('main.reports_hub', tab='directors') }}">
+      <i class="fas fa-user-tie me-1"></i>Director Collection
+    </a>
+  </li>
+</ul>
+
+{% set active_tab = request.args.get('tab', 'daily') %}
+
+<!-- ============================================================ -->
+<!-- TAB 1: DAILY CASH REPORT -->
+<!-- ============================================================ -->
+{% if active_tab == 'daily' %}
+
+<!-- Date Filter -->
+<div class="filter-bar d-flex align-items-center gap-3 flex-wrap no-print">
+  <form method="GET" action="{{ url_for('main.reports_hub') }}" class="d-flex align-items-center gap-3 flex-wrap">
+    <input type="hidden" name="tab" value="daily">
+    <div class="d-flex align-items-center gap-2">
+      <label class="fw-semibold text-muted small mb-0">Date:</label>
+      <input type="date" name="date" value="{{ selected_date }}" class="form-control form-control-sm" style="width:auto;">
+    </div>
+    <button type="submit" class="btn btn-primary btn-sm fw-semibold">
+      <i class="fas fa-search me-1"></i>View Report
+    </button>
+    <a href="{{ url_for('main.print_daily_report', date=selected_date) }}" target="_blank" class="btn btn-danger btn-sm fw-semibold">
+      <i class="fas fa-file-pdf me-1"></i>Print PDF
+    </a>
+    <a href="{{ url_for('main.export_daily_report', date=selected_date) }}" class="btn btn-success btn-sm fw-semibold">
+      <i class="fas fa-file-excel me-1"></i>Export Excel
+    </a>
+  </form>
+  <span class="ms-auto text-muted small">Showing: <strong>{{ selected_date }}</strong></span>
+</div>
+
+<!-- Daily Summary Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card stat-card shadow-sm p-3" style="border-left: 4px solid #198754;">
+      <div class="d-flex align-items-center gap-3">
+        <div class="stat-icon" style="background:#d1f5e0;"><i class="fas fa-arrow-down text-success"></i></div>
+        <div>
+          <div class="section-title">Cash Income</div>
+          <div class="fw-bold fs-5 text-success">৳{{ "{:,.0f}".format(daily_cash_income) }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card stat-card shadow-sm p-3" style="border-left: 4px solid #dc3545;">
+      <div class="d-flex align-items-center gap-3">
+        <div class="stat-icon" style="background:#fde8e8;"><i class="fas fa-arrow-up text-danger"></i></div>
+        <div>
+          <div class="section-title">Cash Expense</div>
+          <div class="fw-bold fs-5 text-danger">৳{{ "{:,.0f}".format(daily_cash_expense) }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card stat-card shadow-sm p-3" style="border-left: 4px solid #0d6efd;">
+      <div class="d-flex align-items-center gap-3">
+        <div class="stat-icon" style="background:#dde8ff;"><i class="fas fa-university text-primary"></i></div>
+        <div>
+          <div class="section-title">Bank Credit</div>
+          <div class="fw-bold fs-5 text-primary">৳{{ "{:,.0f}".format(daily_bank_credit) }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card stat-card shadow-sm p-3" style="border-left: 4px solid {{ 'rgb(25,135,84)' if daily_grand_net >= 0 else 'rgb(220,53,69)' }};">
+      <div class="d-flex align-items-center gap-3">
+        <div class="stat-icon" style="background:{{ '#d1f5e0' if daily_grand_net >= 0 else '#fde8e8' }};">
+          <i class="fas fa-balance-scale {{ 'text-success' if daily_grand_net >= 0 else 'text-danger' }}"></i>
+        </div>
+        <div>
+          <div class="section-title">Net Balance</div>
+          <div class="fw-bold fs-5 {{ 'text-success' if daily_grand_net >= 0 else 'text-danger' }}">
+            ৳{{ "{:,.0f}".format(daily_grand_net) }}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Daily Transactions Tables -->
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="card shadow-sm border-0 rounded-4">
+      <div class="card-header bg-white border-0 py-3 px-4">
+        <h6 class="fw-bold mb-0"><i class="fas fa-coins me-2 text-warning"></i>Cash Transactions</h6>
+      </div>
+      <div class="card-body p-0">
+        {% if daily_cash_entries %}
+        <div class="table-responsive">
+          <table class="table table-hover mb-0 align-middle">
+            <thead class="table-light">
+              <tr>
+                <th class="ps-4">Description</th>
+                <th>Category</th>
+                <th class="text-end pe-4">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for e in daily_cash_entries %}
+              <tr>
+                <td class="ps-4">
+                  <div class="fw-semibold small">{{ e.description }}</div>
+                </td>
+                <td><span class="badge {{ 'badge-income' if e.type == 'Income' else 'badge-expense' }} rounded-pill px-3">{{ e.type }}</span></td>
+                <td class="text-end pe-4 fw-bold {{ 'text-success' if e.type == 'Income' else 'text-danger' }}">
+                  {{ '+' if e.type == 'Income' else '-' }}৳{{ "{:,.0f}".format(e.amount) }}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+            <tfoot class="table-light">
+              <tr>
+                <td colspan="2" class="ps-4 fw-bold">Net Cash</td>
+                <td class="pe-4 fw-bold text-end {{ 'text-success' if daily_net_cash >= 0 else 'text-danger' }}">
+                  ৳{{ "{:,.0f}".format(daily_net_cash) }}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5 text-muted">
+          <i class="fas fa-inbox fa-2x mb-2 d-block opacity-25"></i>
+          No cash transactions for this date.
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card shadow-sm border-0 rounded-4">
+      <div class="card-header bg-white border-0 py-3 px-4">
+        <h6 class="fw-bold mb-0"><i class="fas fa-university me-2 text-primary"></i>Bank Transactions</h6>
+      </div>
+      <div class="card-body p-0">
+        {% if daily_bank_entries %}
+        <div class="table-responsive">
+          <table class="table table-hover mb-0 align-middle">
+            <thead class="table-light">
+              <tr>
+                <th class="ps-4">Narration</th>
+                <th class="text-end">Credit</th>
+                <th class="text-end pe-4">Debit</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for tx in daily_bank_entries %}
+              <tr>
+                <td class="ps-4 small fw-semibold">{{ tx.narration or tx.transaction_details or '—' }}</td>
+                <td class="text-success text-end fw-semibold">{{ '৳'+"{:,.0f}".format(tx.credit) if tx.credit else '—' }}</td>
+                <td class="text-danger text-end pe-4 fw-semibold">{{ '৳'+"{:,.0f}".format(tx.debit) if tx.debit else '—' }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+            <tfoot class="table-light">
+              <tr>
+                <td class="ps-4 fw-bold">Net Bank</td>
+                <td class="fw-bold text-success text-end">৳{{ "{:,.0f}".format(daily_bank_credit) }}</td>
+                <td class="fw-bold text-danger text-end pe-4">৳{{ "{:,.0f}".format(daily_bank_debit) }}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5 text-muted">
+          <i class="fas fa-inbox fa-2x mb-2 d-block opacity-25"></i>
+          No bank transactions for this date.
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endif %}
+
+<!-- ============================================================ -->
+<!-- TAB 2: MONTHLY SUMMARY -->
+<!-- ============================================================ -->
+{% if active_tab == 'monthly' %}
+
+<div class="filter-bar d-flex align-items-center gap-3 flex-wrap no-print">
+  <form method="GET" action="{{ url_for('main.reports_hub') }}" class="d-flex align-items-center gap-3 flex-wrap">
+    <input type="hidden" name="tab" value="monthly">
+    <div class="d-flex align-items-center gap-2">
+      <label class="fw-semibold text-muted small mb-0">Month:</label>
+      <input type="month" name="month" value="{{ selected_month }}" class="form-control form-control-sm" style="width:auto;">
+    </div>
+    <button type="submit" class="btn btn-primary btn-sm fw-semibold"><i class="fas fa-search me-1"></i>View</button>
+    <a href="{{ url_for('main.export_monthly_report', month=selected_month) }}" class="btn btn-success btn-sm fw-semibold">
+      <i class="fas fa-file-excel me-1"></i>Export Excel
+    </a>
+  </form>
+</div>
+
+<!-- Monthly Overview Table -->
+<div class="card shadow-sm border-0 rounded-4 mb-4">
+  <div class="card-header bg-white border-0 py-3 px-4">
+    <h6 class="fw-bold mb-0"><i class="fas fa-table me-2 text-info"></i>Last 6 Months Summary</h6>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th class="ps-4">Month</th>
+          <th class="text-end">Cash Income</th>
+          <th class="text-end">Cash Expense</th>
+          <th class="text-end">Bank Credit</th>
+          <th class="text-end">Bank Debit</th>
+          <th class="text-end">Installments</th>
+          <th class="text-end pe-4">Net</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in monthly_data %}
+        <tr {% if m.month_str == selected_month %}class="table-primary fw-bold"{% endif %}>
+          <td class="ps-4 fw-semibold">
+            {{ m.month }}
+            {% if m.month_str == selected_month %}<span class="badge bg-primary ms-2 small">Selected</span>{% endif %}
+          </td>
+          <td class="text-end text-success">৳{{ "{:,.0f}".format(m.cash_income) }}</td>
+          <td class="text-end text-danger">৳{{ "{:,.0f}".format(m.cash_expense) }}</td>
+          <td class="text-end text-primary">৳{{ "{:,.0f}".format(m.bank_credit) }}</td>
+          <td class="text-end text-danger">৳{{ "{:,.0f}".format(m.bank_debit) }}</td>
+          <td class="text-end text-info">৳{{ "{:,.0f}".format(m.installment_collected) }}</td>
+          <td class="text-end pe-4 fw-bold {{ 'text-success' if m.net >= 0 else 'text-danger' }}">
+            ৳{{ "{:,.0f}".format(m.net) }}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot class="table-dark">
+        <tr>
+          <td class="ps-4 fw-bold">Grand Total</td>
+          <td class="text-end fw-bold text-success">৳{{ "{:,.0f}".format(monthly_data | sum(attribute='cash_income')) }}</td>
+          <td class="text-end fw-bold text-danger">৳{{ "{:,.0f}".format(monthly_data | sum(attribute='cash_expense')) }}</td>
+          <td class="text-end fw-bold text-info">৳{{ "{:,.0f}".format(monthly_data | sum(attribute='bank_credit')) }}</td>
+          <td class="text-end fw-bold text-warning">৳{{ "{:,.0f}".format(monthly_data | sum(attribute='bank_debit')) }}</td>
+          <td class="text-end fw-bold">৳{{ "{:,.0f}".format(monthly_data | sum(attribute='installment_collected')) }}</td>
+          <td class="text-end pe-4 fw-bold">
+            ৳{{ "{:,.0f}".format(monthly_data | sum(attribute='net')) }}
+          </td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+
+<!-- Monthly Bar Chart -->
+<div class="card shadow-sm border-0 rounded-4">
+  <div class="card-header bg-white border-0 py-3 px-4">
+    <h6 class="fw-bold mb-0"><i class="fas fa-chart-bar me-2 text-primary"></i>Income vs Expense Chart</h6>
+  </div>
+  <div class="card-body">
+    <canvas id="monthlyChart" height="100"></canvas>
+  </div>
+</div>
+{% endif %}
+
+<!-- ============================================================ -->
+<!-- TAB 3: INSTALLMENT STATUS -->
+<!-- ============================================================ -->
+{% if active_tab == 'installments' %}
+
+<div class="d-flex justify-content-between align-items-center mb-3 no-print">
+  <h6 class="fw-bold text-muted mb-0"><i class="fas fa-layer-group me-2"></i>All Installments — Collection Status</h6>
+  <a href="{{ url_for('main.export_installment_report') }}" class="btn btn-success btn-sm fw-semibold">
+    <i class="fas fa-file-excel me-1"></i>Export Excel
+  </a>
+</div>
+
+{% if inst_report %}
+<div class="row g-3">
+  {% for inst in inst_report %}
+  <div class="col-md-6">
+    <div class="card shadow-sm border-0 rounded-4 h-100">
+      <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-start mb-3">
+          <div>
+            <h6 class="fw-bold mb-1">{{ inst.name }}</h6>
+            <small class="text-muted"><i class="fas fa-calendar me-1"></i>{{ inst.date or 'N/A' }}</small>
+          </div>
+          <span class="badge rounded-pill px-3 py-2 fw-semibold
+            {% if inst.pct >= 75 %}bg-success
+            {% elif inst.pct >= 40 %}bg-warning text-dark
+            {% else %}bg-danger{% endif %}">
+            {{ inst.pct }}%
+          </span>
+        </div>
+
+        <div class="progress mb-3" style="height: 10px;">
+          <div class="progress-bar
+            {% if inst.pct >= 75 %}bg-success
+            {% elif inst.pct >= 40 %}bg-warning
+            {% else %}bg-danger{% endif %}"
+            style="width: {{ inst.pct }}%"></div>
+        </div>
+
+        <div class="row g-2 text-center">
+          <div class="col-4">
+            <div class="bg-light rounded-3 p-2">
+              <div class="section-title">Total Due</div>
+              <div class="fw-bold text-dark small">৳{{ "{:,.0f}".format(inst.total_due) }}</div>
+            </div>
+          </div>
+          <div class="col-4">
+            <div class="bg-success bg-opacity-10 rounded-3 p-2">
+              <div class="section-title">Collected</div>
+              <div class="fw-bold text-success small">৳{{ "{:,.0f}".format(inst.total_collected) }}</div>
+            </div>
+          </div>
+          <div class="col-4">
+            <div class="bg-danger bg-opacity-10 rounded-3 p-2">
+              <div class="section-title">Remaining</div>
+              <div class="fw-bold text-danger small">৳{{ "{:,.0f}".format(inst.total_remaining) }}</div>
+            </div>
+          </div>
+        </div>
+        <div class="mt-2 text-muted small text-end">
+          <i class="fas fa-coins me-1"></i>Per Share: ৳{{ "{:,.0f}".format(inst.per_share) }}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-5 text-muted">
+  <i class="fas fa-layer-group fa-3x mb-3 d-block opacity-25"></i>
+  <p>No installments found. Create installments first.</p>
+  <a href="{{ url_for('main.list_installments') }}" class="btn btn-primary btn-sm">
+    <i class="fas fa-plus me-1"></i>Go to Installments
+  </a>
+</div>
+{% endif %}
+{% endif %}
+
+<!-- ============================================================ -->
+<!-- TAB 4: DIRECTOR COLLECTION -->
+<!-- ============================================================ -->
+{% if active_tab == 'directors' %}
+
+<!-- Grand Summary Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="card stat-card shadow-sm p-3" style="border-left: 4px solid #0d6efd;">
+      <div class="section-title">Grand Total Due</div>
+      <div class="fw-bold fs-4 text-primary">৳{{ "{:,.0f}".format(grand_due) }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card stat-card shadow-sm p-3" style="border-left: 4px solid #198754;">
+      <div class="section-title">Total Collected</div>
+      <div class="fw-bold fs-4 text-success">৳{{ "{:,.0f}".format(grand_paid) }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card stat-card shadow-sm p-3" style="border-left: 4px solid #dc3545;">
+      <div class="section-title">Total Remaining</div>
+      <div class="fw-bold fs-4 text-danger">৳{{ "{:,.0f}".format(grand_remaining) }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card stat-card shadow-sm p-3" style="border-left: 4px solid #fd7e14;">
+      <div class="section-title">Overall Progress</div>
+      <div class="fw-bold fs-4 text-warning">{{ grand_pct }}%</div>
+      <div class="progress mt-1" style="height:6px;">
+        <div class="progress-bar bg-warning" style="width:{{ grand_pct }}%"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card shadow-sm border-0 rounded-4">
+  <div class="card-header bg-white border-0 py-3 px-4">
+    <h6 class="fw-bold mb-0"><i class="fas fa-user-tie me-2 text-primary"></i>Per-Director Collection Breakdown</h6>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th class="ps-4">Director</th>
+          <th>Customers</th>
+          <th>Shares</th>
+          <th class="text-end">Total Due</th>
+          <th class="text-end">Collected</th>
+          <th class="text-end pe-4">Remaining</th>
+          <th style="width:150px;">Progress</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in director_report %}
+        <tr>
+          <td class="ps-4 fw-semibold">{{ d.name }}</td>
+          <td><span class="badge bg-secondary rounded-pill">{{ d.num_customers }}</span></td>
+          <td>{{ d.shares }}</td>
+          <td class="text-end">৳{{ "{:,.0f}".format(d.total_due) }}</td>
+          <td class="text-end text-success fw-semibold">৳{{ "{:,.0f}".format(d.total_paid) }}</td>
+          <td class="text-end pe-4 text-danger fw-semibold">৳{{ "{:,.0f}".format(d.remaining) }}</td>
+          <td>
+            <div class="d-flex align-items-center gap-2">
+              <div class="progress flex-grow-1" style="height:8px;">
+                <div class="progress-bar
+                  {% if d.pct >= 75 %}bg-success{% elif d.pct >= 40 %}bg-warning{% else %}bg-danger{% endif %}"
+                  style="width:{{ d.pct }}%"></div>
+              </div>
+              <small class="fw-bold text-muted">{{ d.pct }}%</small>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot class="table-dark">
+        <tr>
+          <td class="ps-4 fw-bold" colspan="3">Grand Total</td>
+          <td class="text-end fw-bold">৳{{ "{:,.0f}".format(grand_due) }}</td>
+          <td class="text-end fw-bold text-success">৳{{ "{:,.0f}".format(grand_paid) }}</td>
+          <td class="text-end pe-4 fw-bold text-warning">৳{{ "{:,.0f}".format(grand_remaining) }}</td>
+          <td>
+            <div class="d-flex align-items-center gap-2">
+              <div class="progress flex-grow-1" style="height:8px;">
+                <div class="progress-bar bg-info" style="width:{{ grand_pct }}%"></div>
+              </div>
+              <small class="fw-bold text-white">{{ grand_pct }}%</small>
+            </div>
+          </td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+{% if request.args.get('tab', 'daily') == 'monthly' %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const ctx = document.getElementById('monthlyChart').getContext('2d');
+  const labels = {{ monthly_data | map(attribute='month') | list | tojson }};
+  const income = {{ monthly_data | map(attribute='total_income') | list | tojson }};
+  const expense = {{ monthly_data | map(attribute='total_expense') | list | tojson }};
+  const installments = {{ monthly_data | map(attribute='installment_collected') | list | tojson }};
+
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: 'Total Income',
+          data: income,
+          backgroundColor: 'rgba(25, 135, 84, 0.75)',
+          borderRadius: 6,
+        },
+        {
+          label: 'Total Expense',
+          data: expense,
+          backgroundColor: 'rgba(220, 53, 69, 0.75)',
+          borderRadius: 6,
+        },
+        {
+          label: 'Installments Collected',
+          data: installments,
+          backgroundColor: 'rgba(13, 110, 253, 0.6)',
+          borderRadius: 6,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'top' },
+        tooltip: {
+          callbacks: {
+            label: ctx => ' ৳' + ctx.parsed.y.toLocaleString()
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            callback: val => '৳' + val.toLocaleString()
+          }
+        }
+      }
+    }
+  });
+});
+</script>
+{% endif %}
+{% endblock %}

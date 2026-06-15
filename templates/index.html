@@ -1,0 +1,352 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+
+<!-- Financial Summary Grid (6 Boxes: 3x2) -->
+<div class="row g-3 mb-4">
+    <!-- Row 1 -->
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100 bg-primary bg-opacity-10 border-start border-primary border-4">
+            <div class="card-body p-3">
+                <div class="text-uppercase small fw-bold text-primary mb-1">Project Total Value</div>
+                <div class="fs-4 fw-bold text-dark">৳{{ "{:,.0f}".format(grand_total_payable) }}</div>
+                <div class="small text-muted">Sum of all installments</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100 bg-success bg-opacity-10 border-start border-success border-4">
+            <div class="card-body p-3">
+                <div class="text-uppercase small fw-bold text-success mb-1">Total Collected</div>
+                <div class="fs-4 fw-bold text-dark">৳{{ "{:,.0f}".format(grand_total_paid) }}</div>
+                <div class="small text-muted">Received from payments</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100 bg-danger bg-opacity-10 border-start border-danger border-4">
+            <div class="card-body p-3">
+                <div class="text-uppercase small fw-bold text-danger mb-1">Total Outstanding</div>
+                <div class="fs-4 fw-bold text-dark">৳{{ "{:,.0f}".format(grand_total_due) }}</div>
+                <div class="small text-muted">Remaining dues</div>
+            </div>
+        </div>
+    </div>
+    <!-- Row 2 -->
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100 bg-info bg-opacity-10 border-start border-info border-4">
+            <div class="card-body p-3">
+                <div class="text-uppercase small fw-bold text-info mb-1">Cash In Hand</div>
+                <div class="fs-4 fw-bold text-dark">৳{{ "{:,.0f}".format(cash_in_hand) }}</div>
+                <div class="small text-muted">Available in Petty Cash</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100 bg-warning bg-opacity-10 border-start border-warning border-4">
+            <div class="card-body p-3">
+                <div class="text-uppercase small fw-bold text-warning mb-1">Bank Balance</div>
+                <div class="fs-4 fw-bold text-dark">৳{{ "{:,.0f}".format(bank_balance) }}</div>
+                <div class="small text-muted">Total across all banks</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100 bg-dark bg-opacity-10 border-start border-dark border-4">
+            <div class="card-body p-3">
+                <div class="text-uppercase small fw-bold text-dark mb-1">Total Liquidity</div>
+                <div class="fs-4 fw-bold text-dark-blue">৳{{ "{:,.0f}".format(total_liquidity) }}</div>
+                <div class="small text-muted">Cash + Bank Total</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Income/Expense Trend Graph -->
+<div class="card border-0 shadow-sm mb-5">
+    <div class="card-header bg-white border-0 pt-4 px-4">
+        <h5 class="fw-bold mb-0"><i class="fas fa-chart-line me-2 text-primary"></i>Income & Expense Trend</h5>
+        <p class="text-muted small mb-0">Monthly analysis of cash and bank flows (Last 6 Months)</p>
+    </div>
+    <div class="card-body px-4 pb-4">
+        <div style="height: 300px;">
+            <canvas id="balanceChart"></canvas>
+        </div>
+    </div>
+</div>
+
+{% if not directors %}
+<div class="text-center py-5">
+    <div class="mb-3 text-muted display-1"><i class="fas fa-folder-open"></i></div>
+    <h4>No Directors Found</h4>
+    <p class="text-muted">Start by adding a Director to the system.</p>
+    <a href="{{ url_for('main.add_director') }}" class="btn btn-primary btn-lg rounded-pill shadow-sm">Add Director</a>
+</div>
+{% else %}
+
+<div class="accordion" id="directorsAccordion">
+    {% for director in directors %}
+    <div class="accordion-item mb-3 shadow-sm border-0 rounded overflow-hidden">
+        <h2 class="accordion-header" id="heading{{ director.id }}">
+            <div class="d-flex align-items-center w-100">
+                <button class="accordion-button {% if not loop.first %}collapsed{% endif %} fw-semibold" type="button"
+                    data-bs-toggle="collapse" data-bs-target="#collapse{{ director.id }}"
+                    aria-expanded="{{ 'true' if loop.first else 'false' }}" aria-controls="collapse{{ director.id }}">
+                    <div class="d-flex align-items-center justify-content-between w-100 me-3">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-user-tie me-2 text-primary"></i> 
+                            <span class="fs-5">{{ director.name }}</span>
+                            <span class="badge bg-light text-dark ms-2 border fw-normal">{{ director.customers|length }} Customers</span>
+                        </div>
+                        <div class="d-flex gap-4 text-muted small">
+                            <span><i class="fas fa-coins me-1 text-success"></i> Paid: <span class="text-dark fw-bold">৳{{ "{:,.0f}".format(director.computed_paid) }}</span></span>
+                            <span><i class="fas fa-exclamation-circle me-1 text-danger"></i> Due: <span class="text-dark fw-bold">৳{{ "{:,.0f}".format(director.computed_due) }}</span></span>
+                        </div>
+                    </div>
+                </button>
+            </div>
+        </h2>
+        <div id="collapse{{ director.id }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}"
+            aria-labelledby="heading{{ director.id }}" data-bs-parent="#directorsAccordion">
+            <div class="accordion-body bg-light p-0">
+
+                <!-- Simplified Director Header -->
+                <div class="bg-white p-3 border-bottom d-flex justify-content-between align-items-center px-4">
+                    <div class="small">
+                        <span class="text-muted text-uppercase fw-bold me-2">Phone:</span> {{ director.phone }}
+                        <span class="mx-3 text-muted">|</span>
+                        <span class="text-muted text-uppercase fw-bold me-2">Bank:</span> {{ director.bank_name or 'N/A' }}
+                    </div>
+                    <div>
+                        <a href="{{ url_for('main.download_director_customers_report', id=director.id) }}" 
+                           class="btn btn-sm btn-outline-success rounded-pill me-1" title="Export List">
+                           <i class="fas fa-file-excel me-1"></i>Export
+                        </a>
+                        <a href="{{ url_for('main.edit_director', id=director.id) }}"
+                            class="btn btn-sm btn-outline-secondary rounded-pill me-1">Edit</a>
+                        <a href="#" onclick="return confirmDelete(event, '{{ url_for('main.delete_director', id=director.id) }}')"
+                            class="btn btn-sm btn-outline-danger rounded-pill">Delete</a>
+                    </div>
+                </div>
+
+                {% if director.customers %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead class="bg-white text-muted small text-uppercase" style="font-size: 0.75rem;">
+                            <tr>
+                                <th class="ps-4">ID</th>
+                                <th>Customer Name</th>
+                                <th>Shares</th>
+                                <th>Total Payable</th>
+                                <th>Paid Amount</th>
+                                <th>Remaining Due</th>
+                                <th class="text-end pe-4">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for customer in director.customers %}
+                            {% set total_due_cust = (customer.num_shares * total_per_share_installment) %}
+                            <tr class="searchable-row">
+                                <td class="ps-4 fw-medium text-secondary" style="font-size: 0.85rem;">{{ customer.customer_id }}</td>
+                                <td>
+                                    <div class="fw-bold text-dark">{{ customer.name }}</div>
+                                    <div class="text-muted small"><i class="fas fa-phone-alt me-1" style="font-size: 0.7rem;"></i>{{ customer.phone }}</div>
+                                </td>
+                                <td><span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25">{{ customer.num_shares }} Shares</span></td>
+                                <td class="text-dark">৳{{ "{:,.0f}".format(total_due_cust) }}</td>
+                                <td class="text-success fw-semibold">৳{{ "{:,.0f}".format(customer.total_paid) }}</td>
+                                <td class="text-danger fw-semibold">৳{{ "{:,.0f}".format(total_due_cust - customer.total_paid) }}</td>
+                                <td class="text-end pe-4 text-nowrap">
+                                    <a href="{{ url_for('main.manage_transactions', customer_id=customer.id) }}"
+                                        class="btn btn-sm btn-light border shadow-sm rounded-circle me-1" title="Transactions"><i class="fas fa-receipt text-info"></i></a>
+                                    <a href="{{ url_for('main.edit_customer', id=customer.id) }}"
+                                        class="btn btn-sm btn-light border shadow-sm rounded-circle me-1" title="Edit"><i class="fas fa-edit text-primary"></i></a>
+                                    <a href="#" class="btn btn-sm btn-light border shadow-sm rounded-circle"
+                                        title="Delete" onclick="return confirmDelete(event, '{{ url_for('main.delete_customer', id=customer.id) }}')">
+                                        <i class="fas fa-trash-alt text-danger"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="bg-white fw-bold border-top">
+                            <tr>
+                                <td colspan="3" class="text-end ps-4">Director Summary:</td>
+                                <td class="text-dark">৳{{ "{:,.0f}".format(director.computed_payable) }}</td>
+                                <td class="text-success">৳{{ "{:,.0f}".format(director.computed_paid) }}</td>
+                                <td class="text-danger">৳{{ "{:,.0f}".format(director.computed_due) }}</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4 text-muted">
+                    No customers added for this director yet.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Create Installment Modal -->
+<div class="modal fade" id="createInstallmentModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form action="{{ url_for('main.create_installment') }}" method="POST">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold"><i class="fas fa-layer-group me-2 text-primary"></i>Create New Installment</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info small">
+                        <i class="fas fa-info-circle me-1"></i>
+                        When you create an installment, the system will auto-calculate each customer's due amount based on their number of shares.
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted">Installment Name *</label>
+                            <input type="text" name="name" class="form-control form-control-lg" 
+                                placeholder="e.g., Piling Installment" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold text-muted">Amount Per Share *</label>
+                            <div class="input-group">
+                                <span class="input-group-text">৳</span>
+                                <input type="number" step="0.01" name="per_share_amount" class="form-control" 
+                                    placeholder="0.00" required>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold text-muted">Date</label>
+                            <input type="date" name="created_date" class="form-control" 
+                                value="{{ now.strftime('%Y-%m-%d') if now else '' }}">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-bold text-muted">Admin Password *</label>
+                            <input type="password" name="admin_password" class="form-control" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary rounded-pill fw-bold px-4">
+                        <i class="fas fa-plus me-2"></i>Create Installment
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Global Search Functionality
+    const navSearchBar = document.getElementById('navSearchBar');
+    if (navSearchBar) {
+        navSearchBar.addEventListener('keyup', function () {
+            let value = this.value.toLowerCase().trim();
+            let directors = document.querySelectorAll('.accordion-item');
+
+            directors.forEach(function (director) {
+                let rows = director.querySelectorAll('.searchable-row');
+                let hasMatch = false;
+
+                rows.forEach(function (row) {
+                    let text = row.textContent.toLowerCase();
+                    if (value === '' || text.indexOf(value) > -1) {
+                        row.style.display = '';
+                        if (value !== '') hasMatch = true;
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+
+                let collapseDiv = director.querySelector('.accordion-collapse');
+                if (value === '') {
+                    director.style.display = '';
+                } else {
+                    if (hasMatch) {
+                        director.style.display = '';
+                        if (collapseDiv && !collapseDiv.classList.contains('show')) {
+                            new bootstrap.Collapse(collapseDiv, { toggle: false }).show();
+                        }
+                    } else {
+                        director.style.display = 'none';
+                    }
+                }
+            });
+        });
+    }
+
+    // Chart.js - Income vs Expense
+    const ctx = document.getElementById('balanceChart').getContext('2d');
+    const balanceChart = new Chart(ctx, {
+        type: 'bar', // Mixed chart
+        data: {
+            labels: {{ graph_labels|tojson }},
+            datasets: [
+                {
+                    label: 'Income',
+                    data: {{ graph_income|tojson }},
+                    backgroundColor: 'rgba(25, 135, 84, 0.2)', // bg-success opacity
+                    borderColor: 'rgba(25, 135, 84, 1)',
+                    borderWidth: 2,
+                    borderRadius: 5,
+                    type: 'bar'
+                },
+                {
+                    label: 'Expense',
+                    data: {{ graph_expense|tojson }},
+                    backgroundColor: 'rgba(220, 53, 69, 0.2)', // bg-danger opacity
+                    borderColor: 'rgba(220, 53, 69, 1)',
+                    borderWidth: 2,
+                    borderRadius: 5,
+                    type: 'bar'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                intersect: false,
+                mode: 'index',
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '৳' + value.toLocaleString();
+                        }
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            if (context.parsed.y !== null) {
+                                label += new Intl.NumberFormat('en-BD', { style: 'currency', currency: 'BDT' }).format(context.parsed.y);
+                            }
+                            return label;
+                        }
+                    }
+                }
+            }
+        }
+    });
+</script>
+
+{% endblock %}

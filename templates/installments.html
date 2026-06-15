@@ -1,0 +1,210 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="fw-bold text-dark-blue">Installments</h2>
+        <p class="text-muted mb-0">Manage installment milestones & track payments</p>
+    </div>
+    <div class="d-flex gap-2">
+        <button class="btn btn-primary rounded-pill" data-bs-toggle="modal" data-bs-target="#createInstallmentModal">
+            <i class="fas fa-plus me-2"></i>New Installment
+        </button>
+        <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary rounded-pill">
+            <i class="fas fa-arrow-left me-1"></i> Dashboard
+        </a>
+    </div>
+</div>
+
+{% if not installments %}
+<div class="text-center py-5">
+    <div class="mb-3 text-muted display-1"><i class="fas fa-layer-group"></i></div>
+    <h4>No Installments Found</h4>
+    <p class="text-muted">Create your first installment milestone (e.g., "Piling Installment").</p>
+    <button class="btn btn-primary btn-lg rounded-pill shadow-sm" data-bs-toggle="modal" data-bs-target="#createInstallmentModal">
+        <i class="fas fa-plus me-2"></i>Create Installment
+    </button>
+</div>
+{% else %}
+
+<div class="row g-4">
+    {% for inst in installments %}
+    <div class="col-md-6 col-lg-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white border-0 pt-4 px-4 pb-2">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h5 class="fw-bold text-dark mb-1">{{ inst.name }}</h5>
+                        <div class="small text-muted">
+                            <i class="fas fa-calendar me-1"></i>{{ inst.created_date }}
+                            &nbsp;&bull;&nbsp;
+                            <i class="fas fa-coins me-1"></i>৳{{ "{:,.0f}".format(inst.per_share_amount) }}/share
+                        </div>
+                    </div>
+                    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 fw-bold fs-6">
+                        #{{ inst.id }}
+                    </span>
+                </div>
+            </div>
+            <div class="card-body px-4 pb-2">
+                <div class="row text-center g-2 mb-3">
+                    <div class="col-4">
+                        <div class="small text-muted fw-bold text-uppercase" style="font-size:0.7rem;">Total Due</div>
+                        <div class="fw-bold text-dark">৳{{ "{:,.0f}".format(inst._total_due) }}</div>
+                    </div>
+                    <div class="col-4">
+                        <div class="small text-muted fw-bold text-uppercase" style="font-size:0.7rem;">Collected</div>
+                        <div class="fw-bold text-success">৳{{ "{:,.0f}".format(inst._total_collected) }}</div>
+                    </div>
+                    <div class="col-4">
+                        <div class="small text-muted fw-bold text-uppercase" style="font-size:0.7rem;">Remaining</div>
+                        <div class="fw-bold text-danger">৳{{ "{:,.0f}".format(inst._total_remaining) }}</div>
+                    </div>
+                </div>
+                {% if inst._total_due > 0 %}
+                {% set pct = [(inst._total_collected / inst._total_due * 100), 100] | min %}
+                <div class="progress mb-2" style="height: 6px;">
+                    <div class="progress-bar bg-success" style="width: {{ pct }}%;"></div>
+                </div>
+                <div class="small text-muted text-end">{{ "%.1f"|format(pct) }}% collected</div>
+                {% endif %}
+            </div>
+            <div class="card-footer bg-white border-0 px-4 pb-4 d-flex gap-2">
+                <a href="{{ url_for('main.installment_detail', inst_id=inst.id) }}" class="btn btn-primary rounded-pill btn-sm flex-grow-1">
+                    <i class="fas fa-eye me-1"></i> View Details
+                </a>
+                <button class="btn btn-outline-secondary btn-sm rounded-pill" 
+                    data-bs-toggle="modal" data-bs-target="#editInstModal{{ inst.id }}">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <form action="{{ url_for('main.delete_installment', inst_id=inst.id) }}" method="POST" class="d-inline"
+                    onsubmit="return confirm('Delete this installment and ALL payment records? This cannot be undone.');">
+                    <input type="hidden" name="admin_password" id="delInstPass{{ inst.id }}">
+                    <button type="button" class="btn btn-outline-danger btn-sm rounded-pill"
+                        onclick="promptPassAndSubmit('delInstPass{{ inst.id }}', this.closest('form'))">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Installment Modal -->
+    <div class="modal fade" id="editInstModal{{ inst.id }}" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form action="{{ url_for('main.edit_installment', inst_id=inst.id) }}" method="POST">
+                    <div class="modal-header border-0">
+                        <h5 class="modal-title fw-bold">Edit Installment</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-muted">Installment Name *</label>
+                            <input type="text" name="name" class="form-control" value="{{ inst.name }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-muted">Amount Per Share *</label>
+                            <div class="input-group">
+                                <span class="input-group-text">৳</span>
+                                <input type="number" step="0.01" name="per_share_amount" class="form-control"
+                                    value="{{ inst.per_share_amount }}" required>
+                            </div>
+                            <div class="form-text text-warning"><i class="fas fa-exclamation-triangle me-1"></i>This will recalculate all customer dues.</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-muted">Admin Password *</label>
+                            <input type="password" name="admin_password" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0">
+                        <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-warning rounded-pill fw-bold">Update Installment</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+
+<!-- Create Installment Modal -->
+<div class="modal fade" id="createInstallmentModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form action="{{ url_for('main.create_installment') }}" method="POST">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold"><i class="fas fa-layer-group me-2 text-primary"></i>Create New Installment</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info small">
+                        <i class="fas fa-info-circle me-1"></i>
+                        When you create an installment, the system will auto-calculate each customer's due amount based on their number of shares.
+                        <strong>Customer Due = Number of Shares × Per Share Amount</strong>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted">Installment Name *</label>
+                            <input type="text" name="name" class="form-control form-control-lg" 
+                                placeholder="e.g., Piling Installment" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold text-muted">Amount Per Share *</label>
+                            <div class="input-group">
+                                <span class="input-group-text">৳</span>
+                                <input type="number" step="0.01" name="per_share_amount" class="form-control" 
+                                    placeholder="0.00" required>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold text-muted">Date</label>
+                            <input type="date" name="created_date" class="form-control" 
+                                value="{{ now.strftime('%Y-%m-%d') if now else '' }}">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-bold text-muted">Admin Password *</label>
+                            <input type="password" name="admin_password" class="form-control" required>
+                        </div>
+                    </div>
+
+                    {% if customers %}
+                    <div class="mt-3 border rounded p-3 bg-light">
+                        <div class="small fw-bold text-muted mb-2 text-uppercase">Preview: {{ customers|length }} Customers</div>
+                        <div class="small text-muted">
+                            {% for c in customers[:5] %}
+                            <div class="d-flex justify-content-between">
+                                <span>{{ c.name }} <span class="text-secondary">({{ c.num_shares }} shares)</span></span>
+                                <span class="text-primary fw-bold">Will be calculated on submit</span>
+                            </div>
+                            {% endfor %}
+                            {% if customers|length > 5 %}
+                            <div class="text-muted fst-italic mt-1">... and {{ customers|length - 5 }} more customers</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary rounded-pill fw-bold px-4">
+                        <i class="fas fa-plus me-2"></i>Create Installment
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function promptPassAndSubmit(inputId, form) {
+    const pass = prompt('Enter Admin Password to delete:');
+    if (pass === null) return;
+    document.getElementById(inputId).value = pass;
+    form.submit();
+}
+</script>
+
+{% endblock %}

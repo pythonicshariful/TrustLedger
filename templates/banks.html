@@ -1,0 +1,238 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12">
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2 class="fw-bold text-dark-blue">Bank Management</h2>
+                <p class="text-muted mb-0">Manage Company Bank Accounts & Ledgers</p>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary rounded-pill">
+                    <i class="fas fa-arrow-left me-1"></i> Back to Dashboard
+                </a>
+                <button class="btn btn-primary rounded-pill shadow-sm" onclick="openAddModal()">
+                    <i class="fas fa-plus me-2"></i>Add Bank Account
+                </button>
+            </div>
+        </div>
+
+        <!-- Bank List -->
+        {% if not banks %}
+        <div class="text-center py-5">
+            <div class="mb-3 text-muted display-1"><i class="fas fa-university"></i></div>
+            <h4>No Bank Accounts Found</h4>
+            <p class="text-muted">Add a bank account to start tracking transactions.</p>
+        </div>
+        {% else %}
+        <div class="row g-4">
+            {% for bank in banks %}
+            <div class="col-md-6 col-lg-4">
+                <div class="card border-0 shadow-sm h-100 hover-shadow transition-all">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div class="d-flex align-items-center">
+                                <div class="bg-primary bg-opacity-10 text-primary rounded-circle p-3 me-3">
+                                    <i class="fas fa-university fa-lg"></i>
+                                </div>
+                                <div>
+                                    <h5 class="fw-bold text-dark mb-0">{{ bank.bank_name }}</h5>
+                                    <div class="small text-muted">{{ bank.account_type }}</div>
+                                </div>
+                            </div>
+                            <span class="badge {{ 'bg-success' if bank.status == 'Active' else 'bg-secondary' }} bg-opacity-10 {{ 'text-success' if bank.status == 'Active' else 'text-secondary' }}">
+                                {{ bank.status }}
+                            </span>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between small mb-1">
+                                <span class="text-muted">Account No:</span>
+                                <span class="fw-bold text-dark">{{ bank.account_no }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between small mb-1">
+                                <span class="text-muted">Holder:</span>
+                                <span class="fw-bold text-dark">{{ bank.account_holder_name }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between small mb-1">
+                                <span class="text-muted">Branch:</span>
+                                <span class="text-dark">{{ bank.branch }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between small mb-1">
+                                <span class="text-muted">Currency:</span>
+                                <span class="text-dark">{{ bank.currency }}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <a href="{{ url_for('main.bank_ledger', id=bank.id) }}" class="btn btn-outline-primary rounded-pill">
+                                <i class="fas fa-book me-2"></i>View Ledger
+                            </a>
+                            <div class="d-flex gap-2">
+                                    <button class="btn btn-sm btn-light text-primary rounded-circle me-1" 
+                                            onclick='openEditModal({{ bank.to_dict()|tojson }})' title="Edit">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <a href="#" onclick="return confirmDelete(event, '{{ url_for('main.delete_bank', id=bank.id) }}')" class="btn btn-sm btn-light text-danger rounded-circle" title="Delete">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Add/Edit Bank Modal -->
+<div class="modal fade" id="bankModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-light border-0">
+                <h5 class="modal-title fw-bold" id="modalTitle">Add New Bank Account</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form id="bankForm" method="POST" action="{{ url_for('main.manage_banks') }}" onsubmit="return confirmAction(event, 'bankForm')">
+                    <div class="row g-3">
+                        <!-- Basic Info -->
+                        <div class="col-12"><h6 class="text-muted text-uppercase small fw-bold border-bottom pb-2">Account Details</h6></div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted">Bank Name *</label>
+                            <input type="text" name="bank_name" id="inputBankName" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted">Account Number *</label>
+                            <input type="text" name="account_no" id="inputAccountNo" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted">Branch</label>
+                            <input type="text" name="branch" id="inputBranch" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted">Previous Balance/Account No</label>
+                            <input type="text" name="prev_account_no" id="inputPrevAccountNo" class="form-control">
+                        </div>
+                         <div class="col-md-4">
+                            <label class="form-label small fw-bold text-muted">Account Type</label>
+                            <select name="account_type" id="inputAccountType" class="form-select">
+                                <option value="Savings">Savings</option>
+                                <option value="Current">Current</option>
+                                <option value="Salary">Salary</option>
+                                <option value="Fixed Deposit">Fixed Deposit</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                         <div class="col-md-4">
+                            <label class="form-label small fw-bold text-muted">Currency</label>
+                            <input type="text" name="currency" id="inputCurrency" class="form-control" value="BDT">
+                        </div>
+                         <div class="col-md-4">
+                            <label class="form-label small fw-bold text-muted">Status</label>
+                            <select name="status" id="inputStatus" class="form-select">
+                                <option value="Active">Active</option>
+                                <option value="Inactive">Inactive</option>
+                            </select>
+                        </div>
+
+                         <!-- Personal Info -->
+                        <div class="col-12 mt-4"><h6 class="text-muted text-uppercase small fw-bold border-bottom pb-2">Holder Information</h6></div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted">Account Holder Name</label>
+                            <input type="text" name="account_holder_name" id="inputHolderName" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted">Joint Name</label>
+                            <input type="text" name="joint_name" id="inputJointName" class="form-control">
+                        </div>
+                         <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted">Father/Husband/Parent</label>
+                            <input type="text" name="fhp" id="inputFHP" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted">Bank Customer ID</label>
+                            <input type="text" name="customer_id" id="inputCustomerID" class="form-control">
+                        </div>
+                        
+                        <!-- Contact Info -->
+                        <div class="col-12 mt-4"><h6 class="text-muted text-uppercase small fw-bold border-bottom pb-2">Contact Details</h6></div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted">Phone</label>
+                            <input type="text" name="phone" id="inputPhone" class="form-control">
+                        </div>
+                         <div class="col-md-6">
+                            <label class="form-label small fw-bold text-muted">City</label>
+                            <input type="text" name="city" id="inputCity" class="form-control">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-bold text-muted">Address</label>
+                            <textarea name="address" id="inputAddress" class="form-control" rows="2"></textarea>
+                        </div>
+                        
+                        <div class="col-12 mt-4">
+                            <button type="submit" class="btn btn-primary w-100 fw-bold py-2" id="modalSubmitBtn">Save Account</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    var bankModal;
+    document.addEventListener("DOMContentLoaded", function(){
+        bankModal = new bootstrap.Modal(document.getElementById('bankModal'));
+    });
+
+    function openAddModal() {
+        document.getElementById('modalTitle').innerText = 'Add New Bank Account';
+        document.getElementById('modalSubmitBtn').innerText = 'Save Account';
+        document.getElementById('bankForm').action = "{{ url_for('main.manage_banks') }}";
+        
+        // Clear fields
+        document.getElementById('bankForm').reset();
+        document.getElementById('inputCurrency').value = 'BDT';
+        document.getElementById('inputStatus').value = 'Active';
+        
+        bankModal.show();
+    }
+
+    function openEditModal(bank) {
+        document.getElementById('modalTitle').innerText = 'Edit Bank Account';
+        document.getElementById('modalSubmitBtn').innerText = 'Update Account';
+        document.getElementById('bankForm').action = "/bank/edit/" + bank.id;
+        
+        // Populate fields
+        document.getElementById('inputBankName').value = bank.bank_name;
+        document.getElementById('inputAccountNo').value = bank.account_no;
+        document.getElementById('inputBranch').value = bank.branch || '';
+        document.getElementById('inputPrevAccountNo').value = bank.prev_account_no || '';
+        document.getElementById('inputAccountType').value = bank.account_type || 'Savings';
+        document.getElementById('inputCurrency').value = bank.currency || 'BDT';
+        document.getElementById('inputStatus').value = bank.status || 'Active';
+        
+        document.getElementById('inputHolderName').value = bank.account_holder_name || '';
+        document.getElementById('inputJointName').value = bank.joint_name || '';
+        document.getElementById('inputFHP').value = bank.fhp || '';
+        document.getElementById('inputCustomerID').value = bank.customer_id || '';
+        
+        document.getElementById('inputPhone').value = bank.phone || '';
+        document.getElementById('inputCity').value = bank.city || '';
+        document.getElementById('inputAddress').value = bank.address || '';
+        
+        bankModal.show();
+    }
+</script>
+{% endblock %}

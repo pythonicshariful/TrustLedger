@@ -1,0 +1,14 @@
+[2026-06-15 15:14:22] Synced Excel to: C:\Users\USER\Downloads\Software - Copy\Software - Copy\abc_master.xlsx
+[2026-06-15 15:14:22] Backup created at: C:\Users\USER\Downloads\Software - Copy\Software - Copy\backups\abc_backup_20260615_151422.xlsx
+[2026-06-15 15:14:22] Initiating Telegram backup upload...
+[2026-06-15 15:14:22] Attempting to send document: C:\Users\USER\Downloads\Software - Copy\Software - Copy\backups\abc_backup_20260615_151422.xlsx
+[2026-06-15 15:14:24] Document sent successfully.
+[2026-06-15 15:14:24] Excel backup sent to Telegram.
+[2026-06-15 15:14:24] Sending DB backup: C:\Users\USER\Downloads\Software - Copy\Software - Copy\project.db
+[2026-06-15 15:14:24] Attempting to send document: C:\Users\USER\Downloads\Software - Copy\Software - Copy\project.db
+[2026-06-15 15:14:26] Document sent successfully.
+[2026-06-15 15:14:26] DB backup sent to Telegram.
+[2026-06-15 15:14:26] Attempting to send document: C:\Users\USER\Downloads\Software - Copy\Software - Copy\abc\project.db
+[2026-06-15 15:14:36] Document sent successfully.
+[2026-06-15 15:22:06] Attempting to send document: C:\Users\USER\Downloads\Software - Copy\Software - Copy\abc\project.db
+[2026-06-15 15:22:08] Document sent successfully.

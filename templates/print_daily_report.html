@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Cash Report - {{ selected_date }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            color: #333;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+        .report-container {
+            max-width: 900px;
+            margin: 2rem auto;
+            background: #fff;
+            padding: 3rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            border-radius: 1rem;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #dee2e6;
+            padding-bottom: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .company-name {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #0f3460;
+            margin-bottom: 0.5rem;
+            letter-spacing: 1px;
+        }
+        .report-title {
+            font-size: 1.25rem;
+            color: #6c757d;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        .summary-box {
+            background: #f8f9fa;
+            border-radius: 0.75rem;
+            padding: 1.25rem;
+            border: 1px solid #e9ecef;
+            text-align: center;
+            height: 100%;
+        }
+        .summary-title {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #6c757d;
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+        }
+        .summary-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+        .table-custom {
+            width: 100%;
+            margin-bottom: 2rem;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+        .table-custom th {
+            background: #0f3460;
+            color: white;
+            padding: 0.75rem 1rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            border: none;
+        }
+        .table-custom th:first-child { border-top-left-radius: 0.5rem; }
+        .table-custom th:last-child { border-top-right-radius: 0.5rem; }
+        .table-custom td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #e9ecef;
+            vertical-align: middle;
+        }
+        .table-custom tr:last-child td { border-bottom: none; }
+        .table-custom tbody tr:nth-of-type(even) { background-color: #f8f9fa; }
+        
+        .text-income { color: #198754; font-weight: 600; }
+        .text-expense { color: #dc3545; font-weight: 600; }
+        
+        .total-row {
+            background: #f1f3f5 !important;
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+        
+        @media print {
+            body { background: white; margin: 0; padding: 0; }
+            .report-container { 
+                box-shadow: none; 
+                margin: 0; 
+                padding: 1rem; 
+                width: 100%; 
+                max-width: 100%;
+            }
+            .no-print { display: none !important; }
+            .table-custom th {
+                background: #f1f3f5 !important;
+                color: #000 !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="report-container">
+        <!-- Print Button -->
+        <div class="text-end mb-4 no-print">
+            <button onclick="window.print()" class="btn btn-primary px-4 rounded-pill shadow-sm">
+                <i class="fas fa-print me-2"></i>Print PDF
+            </button>
+            <button onclick="window.close()" class="btn btn-light px-4 rounded-pill shadow-sm ms-2">
+                Close
+            </button>
+        </div>
+
+        <div class="header">
+            <div class="company-name">{{ config['COMPANY_NAME'] }}</div>
+            <div class="report-title">Daily Cash & Bank Report</div>
+            <div class="mt-2 text-muted">
+                <strong>Date:</strong> {{ selected_date }} | 
+                <strong>Generated On:</strong> {{ now.strftime('%Y-%m-%d %I:%M %p') }}
+            </div>
+        </div>
+
+        <!-- Summary Section -->
+        <div class="row g-4 mb-5">
+            <div class="col-sm-3">
+                <div class="summary-box" style="border-top: 4px solid #198754;">
+                    <div class="summary-title text-success">Total Income</div>
+                    <div class="summary-value text-success">৳{{ "{:,.0f}".format(daily_cash_income + daily_bank_credit) }}</div>
+                </div>
+            </div>
+            <div class="col-sm-3">
+                <div class="summary-box" style="border-top: 4px solid #dc3545;">
+                    <div class="summary-title text-danger">Total Expense</div>
+                    <div class="summary-value text-danger">৳{{ "{:,.0f}".format(daily_cash_expense + daily_bank_debit) }}</div>
+                </div>
+            </div>
+            <div class="col-sm-3">
+                <div class="summary-box" style="border-top: 4px solid #0d6efd;">
+                    <div class="summary-title text-primary">Net Cash Flow</div>
+                    <div class="summary-value text-primary">৳{{ "{:,.0f}".format(daily_net_cash) }}</div>
+                </div>
+            </div>
+            <div class="col-sm-3">
+                <div class="summary-box" style="border-top: 4px solid {{ '#198754' if daily_grand_net >= 0 else '#dc3545' }};">
+                    <div class="summary-title">Grand Balance</div>
+                    <div class="summary-value {{ 'text-success' if daily_grand_net >= 0 else 'text-danger' }}">
+                        ৳{{ "{:,.0f}".format(daily_grand_net) }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cash Transactions -->
+        <h5 class="fw-bold mb-3"><i class="fas fa-coins me-2 text-warning"></i>Petty Cash Transactions</h5>
+        {% if daily_cash_entries %}
+        <table class="table-custom">
+            <thead>
+                <tr>
+                    <th>Description</th>
+                    <th>Category</th>
+                    <th class="text-end">Income</th>
+                    <th class="text-end">Expense</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in daily_cash_entries %}
+                <tr>
+                    <td>{{ e.description }}</td>
+                    <td><span class="badge bg-light text-dark border">{{ e.category }}</span></td>
+                    <td class="text-end text-income">
+                        {% if e.type == 'Income' %}৳{{ "{:,.0f}".format(e.amount) }}{% else %}-{% endif %}
+                    </td>
+                    <td class="text-end text-expense">
+                        {% if e.type == 'Expense' %}৳{{ "{:,.0f}".format(e.amount) }}{% else %}-{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr class="total-row">
+                    <td colspan="2" class="text-end">Cash Total:</td>
+                    <td class="text-end text-income">৳{{ "{:,.0f}".format(daily_cash_income) }}</td>
+                    <td class="text-end text-expense">৳{{ "{:,.0f}".format(daily_cash_expense) }}</td>
+                </tr>
+            </tfoot>
+        </table>
+        {% else %}
+        <div class="alert alert-light text-center border mb-5">No cash transactions for this date.</div>
+        {% endif %}
+
+        <!-- Bank Transactions -->
+        <h5 class="fw-bold mb-3 mt-4"><i class="fas fa-university me-2 text-primary"></i>Bank Transactions</h5>
+        {% if daily_bank_entries %}
+        <table class="table-custom">
+            <thead>
+                <tr>
+                    <th>Narration / Details</th>
+                    <th>Ref / Cheque</th>
+                    <th class="text-end">Credit (In)</th>
+                    <th class="text-end">Debit (Out)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for tx in daily_bank_entries %}
+                <tr>
+                    <td>
+                        <div class="fw-bold">{{ tx.narration or 'N/A' }}</div>
+                        <small class="text-muted">{{ tx.transaction_details }}</small>
+                    </td>
+                    <td>
+                        <div class="small">Ref: {{ tx.ref_no or '-' }}</div>
+                        <div class="small">Chq: {{ tx.cheque_no or '-' }}</div>
+                    </td>
+                    <td class="text-end text-income">
+                        {% if tx.credit %}৳{{ "{:,.0f}".format(tx.credit) }}{% else %}-{% endif %}
+                    </td>
+                    <td class="text-end text-expense">
+                        {% if tx.debit %}৳{{ "{:,.0f}".format(tx.debit) }}{% else %}-{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr class="total-row">
+                    <td colspan="2" class="text-end">Bank Total:</td>
+                    <td class="text-end text-income">৳{{ "{:,.0f}".format(daily_bank_credit) }}</td>
+                    <td class="text-end text-expense">৳{{ "{:,.0f}".format(daily_bank_debit) }}</td>
+                </tr>
+            </tfoot>
+        </table>
+        {% else %}
+        <div class="alert alert-light text-center border">No bank transactions for this date.</div>
+        {% endif %}
+
+        <div class="text-center mt-5 pt-3 border-top text-muted small">
+            <em>This is a computer generated report and does not require a physical signature.</em>
+        </div>
+    </div>
+</body>
+</html>
